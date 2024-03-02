@@ -1,43 +1,50 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { BadRequestException, Injectable } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { UsersService } from '../../users/services/users.service';
-import { SignInDto } from '../requests';
+import { LoginDto } from '../requests';
+import { validatePassword } from 'src/users/user.validator';
+import { User } from 'src/users/users.entity';
+import { AbstractService } from 'libs/core/src';
 
 @Injectable()
-export class AuthService {
+export class AuthService extends AbstractService<User> {
   constructor(
-    private readonly usersService: UsersService,
-    private readonly jwtService: JwtService,
-  ) {}
-  async signIn(signInDto: SignInDto) {
-    const { username, password } = signInDto;
-
-    const user = await this.usersService.findByIdentifier(username);
-
-    if (!user) {
-      throw new UnauthorizedException('Invalid username or password');
-    }
-
-    const passwordIsValid = await user.validatePassword(password);
-
-    if (!passwordIsValid) {
-      throw new UnauthorizedException('Invalid username or password');
-    }
-
-    const payload = { sub: user.id, username: user.username };
-    const accessToken = await this.jwtService.signAsync(payload);
-
-    return { access_token: accessToken };
+    private readonly _userService: UsersService,
+    private readonly _jwtService: JwtService,
+  ) {
+    super();
   }
 
-  async validateUser(identifier: string, password: string): Promise<any> {
-    const user = await this.usersService.findByIdentifier(identifier);
+  async validateLogin(data: LoginDto) {
+    const { identifier, password } = data;
+    const user = await this._userService.getUserByIdentifier(identifier);
 
-    if (user && (await user.validatePassword(password))) {
-      const { password, ...result } = user;
-      return result;
+    if (!user) {
+      throw new BadRequestException(
+        "Sign in failed. Double-check if you've entered your email and password correctly and try again.",
+      );
     }
 
-    return null;
+    const isPasswordValid = await validatePassword(
+      password,
+      user && user.password,
+    );
+
+    if (!isPasswordValid) {
+      throw new BadRequestException(
+        "Sign in failed. Double-check if you've entered your email and password correctly and try again.",
+      );
+    }
+
+    delete user.password;
+
+    return user;
+  }
+
+  async login(user: User) {
+    const payload = { sub: user.id, username: user.identifier };
+    const accessToken = await this._jwtService.signAsync(payload);
+
+    return accessToken;
   }
 }
