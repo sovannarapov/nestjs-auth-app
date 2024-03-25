@@ -1,15 +1,15 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
-import { UsersService } from '../../users/services/users.service';
+import { UserService } from '../../user/services/user.service';
 import { LoginDto } from '../requests';
-import { validatePassword } from 'src/users/user.validator';
-import { User } from 'src/users/users.entity';
+import { validatePassword } from 'src/user/user.validator';
+import { User } from 'src/user/user.entity';
 import { AbstractService } from 'libs/core/src';
 
 @Injectable()
 export class AuthService extends AbstractService<User> {
   constructor(
-    private readonly _userService: UsersService,
+    private readonly _userService: UserService,
     private readonly _jwtService: JwtService,
   ) {
     super();
